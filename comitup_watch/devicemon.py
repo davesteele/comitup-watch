@@ -1,4 +1,3 @@
-
 # Copyright (c) 2021 David Steele <dsteele@gmail.com>
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
@@ -21,14 +20,19 @@ class DeviceMonAction(Enum):
     ADDED = "ADDED"
     REMOVED = "REMOVED"
 
+
 class DeviceMonMsg(NamedTuple):
     action: DeviceMonAction
     ssid: str
 
 
 class DeviceMonitor(DBInt):
-    def __init__(self, bus):
+    def __init__(self, bus, event_queue):
         self.dev_paths = set()
+
+        self.event_queue = event_queue
+        APManager.event_queue = event_queue
+
         super().__init__(bus)
 
     async def startup(self) -> None:
@@ -114,6 +118,7 @@ class APManager(DBInt):
     _ssids: Set[str] = set()
     _lock: asyncio.locks.Lock = asyncio.Lock()
     _waiting: bool = False
+    event_queue = None
 
     @classmethod
     async def update_ap_paths(klass) -> List[str]:
@@ -160,16 +165,6 @@ class APManager(DBInt):
                 )[0][1]
                 ssid = bytearray(ssid).decode()
 
-#                 if not ssid:
-#                     await asyncio.sleep(1)
-#                     ssid = (
-#                         await intfc.Get(
-#                             "org.freedesktop.NetworkManager.AccessPoint",
-#                             "Ssid",
-#                         )
-#                     )[0][1]
-#                     ssid = bytearray(ssid).decode()
-# 
                 if ssid:
                     ssids |= set([ssid])
             except dbussy.DBusError:
@@ -214,8 +209,10 @@ class APManager(DBInt):
     async def new_ssid(klass, ssid):
         print("new ssid", ssid)
         msg = DeviceMonMsg(DeviceMonAction.ADDED, ssid)
+        await klass.event_queue.put(msg)
 
     @classmethod
     async def lost_ssid(klass, ssid):
         print("lost ssid", ssid)
         msg = DeviceMonMsg(DeviceMonAction.REMOVED, ssid)
+        await klass.event_queue.put(msg)

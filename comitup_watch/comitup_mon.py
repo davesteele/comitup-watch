@@ -1,4 +1,4 @@
-
+import asyncio
 from bisect import bisect_left
 from functools import total_ordering
 from typing import Optional
@@ -20,7 +20,6 @@ class ComitupHost:
         "ssid": "ssid",
     }
 
-
     def __init__(self, hostname) -> None:
         self.host: str = hostname
 
@@ -30,7 +29,6 @@ class ComitupHost:
         for key in self.all_attrs:
             setattr(self, key, None)
 
-    
     def add_avahi(self, msg: AvahiMessage) -> None:
         for key in self.avahi_attrs:
             setattr(self, key, getattr(msg, self.avahi_attrs[key]))
@@ -57,7 +55,7 @@ class ComitupHost:
         return self.host < other.host
 
 
-class ComitupList():
+class ComitupList:
     def __init__(self):
         self.list = []
 
@@ -83,7 +81,11 @@ class ComitupList():
         return index
 
     def _index(self, hostname: str) -> int:
-        index = [index for index, host in enumerate(self.list) if host.host == hostname][0]
+        index = [
+            index
+            for index, host in enumerate(self.list)
+            if host.host == hostname
+        ][0]
         return index
 
     def rm_host(self, hostname: str) -> None:
@@ -92,3 +94,15 @@ class ComitupList():
 
     def __getitem__(self, index):
         return self.list.__getitem__(index)
+
+
+class ComitupMon:
+    def __init__(self):
+        self.q = asyncio.Queue()
+
+    def event_queue(self):
+        return self.q
+
+    async def run(self):
+        while True:
+            await asyncio.sleep(1)

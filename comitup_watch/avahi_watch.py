@@ -1,5 +1,3 @@
-
-
 # Copyright (c) 2021 David Steele <dsteele@gmail.com>
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
@@ -74,7 +72,7 @@ class MyListener:
         pass
 
 
-async def amain():
+async def amain(event_queue):
     loop = asyncio.get_event_loop()
 
     avahi_q = asyncio.Queue()
@@ -85,11 +83,12 @@ async def amain():
 
     while True:
         msg = await avahi_q.get()
+        await event_queue.put(msg)
         print(msg)
 
 
 def main():
-    asyncio.run(amain())
+    asyncio.run(amain(asyncio.Queue()))
 
 
 if __name__ == "__main__":

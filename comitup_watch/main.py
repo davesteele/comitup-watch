@@ -1,4 +1,3 @@
-
 # Copyright (c) 2021 David Steele <dsteele@gmail.com>
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
@@ -13,16 +12,20 @@ from typing import List, Set
 import dbussy
 import ravel
 
-from . import devicemon
+from . import devicemon, comitup_mon, avahi_watch
 
 
 async def main_async(bus):
 
-    devmon = devicemon.DeviceMonitor(bus)
+    comitupmon = comitup_mon.ComitupMon()
+    event_queue = comitupmon.event_queue()
+
+    devmon = devicemon.DeviceMonitor(bus, event_queue)
     await devmon.startup()
 
-    while True:
-        await asyncio.sleep(1)
+    avahimon = asyncio.create_task(avahi_watch.amain(event_queue))
+
+    await comitupmon.run()
 
 
 def main():
