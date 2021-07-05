@@ -79,7 +79,6 @@ async def amain():
 
     avahi_q = asyncio.Queue()
 
-    # loop.run_in_executor(None, monitor_avahi, loop)
     zc = Zeroconf()
     listener = MyListener(zc, loop, avahi_q)
     browser = ServiceBrowser(zc, "_comitup._tcp.local.", listener)

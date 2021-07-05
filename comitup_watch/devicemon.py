@@ -8,12 +8,22 @@
 import asyncio
 import re
 from datetime import datetime
-from typing import List, Set
+from enum import Enum
+from typing import List, NamedTuple, Set
 
 import dbussy
 import ravel
 
 from .dbint import DBInt
+
+
+class DeviceMonAction(Enum):
+    ADDED = "ADDED"
+    REMOVED = "REMOVED"
+
+class DeviceMonMsg(NamedTuple):
+    action: DeviceMonAction
+    ssid: str
 
 
 class DeviceMonitor(DBInt):
@@ -203,7 +213,9 @@ class APManager(DBInt):
     @classmethod
     async def new_ssid(klass, ssid):
         print("new ssid", ssid)
+        msg = DeviceMonMsg(DeviceMonAction.ADDED, ssid)
 
     @classmethod
     async def lost_ssid(klass, ssid):
         print("lost ssid", ssid)
+        msg = DeviceMonMsg(DeviceMonAction.REMOVED, ssid)
