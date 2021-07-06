@@ -38,7 +38,7 @@ setup(
         },
     },
     data_files=[],
-    install_requires=[],
+    install_requires=["dbussy", "tabulate", "zeroconf"],
     setup_requires=["pytest-runner"],
     tests_require=['pytest'],
     author="David Steele",
