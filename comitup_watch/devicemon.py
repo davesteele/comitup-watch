@@ -6,7 +6,6 @@
 
 import asyncio
 import re
-from datetime import datetime
 from enum import Enum
 from typing import List, NamedTuple, Set
 
@@ -37,7 +36,7 @@ class DeviceMonitor(DBInt):
 
     async def startup(self) -> None:
         for devpath in await self.GetAllDevices():
-            print(devpath)
+            # print(devpath)
             await self.add_dev_path(devpath)
 
         DBInt.bus.listen_signal(
@@ -60,7 +59,7 @@ class DeviceMonitor(DBInt):
 
     async def add_dev_path(self, path):
 
-        print("Added device path", path)
+        # print("Added device path", path)
 
         if str(path) not in self.dev_paths:
             self.dev_paths |= set(str(path))
@@ -91,7 +90,7 @@ class DeviceMonitor(DBInt):
     @ravel.signal(name="DeviceRemoved", in_signature="o")
     async def device_removed_signal(self, path):
 
-        print("Removing device path", path)
+        # print("Removing device path", path)
 
         if str(path) in self.dev_paths:
 
@@ -196,7 +195,7 @@ class APManager(DBInt):
         if klass._waiting:
             return
 
-        print("updating ssid_list")
+        # print("updating ssid_list")
 
         klass._waiting = True
         async with klass._lock:
@@ -207,12 +206,12 @@ class APManager(DBInt):
 
     @classmethod
     async def new_ssid(klass, ssid):
-        print("new ssid", ssid)
+        # print("new ssid", ssid)
         msg = DeviceMonMsg(DeviceMonAction.ADDED, ssid)
         await klass.event_queue.put(msg)
 
     @classmethod
     async def lost_ssid(klass, ssid):
-        print("lost ssid", ssid)
+        # print("lost ssid", ssid)
         msg = DeviceMonMsg(DeviceMonAction.REMOVED, ssid)
         await klass.event_queue.put(msg)

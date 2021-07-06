@@ -9,7 +9,8 @@ import re
 from enum import Enum
 from typing import List, NamedTuple, Optional
 
-from zeroconf import Zeroconf, ServiceBrowser
+import zeroconf
+from zeroconf import ServiceBrowser, Zeroconf
 
 
 class AvahiAction(Enum):
@@ -45,7 +46,7 @@ class MyListener:
 
     def get_ipv4(self, addrlist: List[str]) -> Optional[str]:
         for candidate in addrlist:
-            if re.search("^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", candidate):
+            if re.search(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", candidate):
                 return candidate
         return None
 
@@ -79,12 +80,14 @@ async def amain(event_queue):
 
     zc = Zeroconf()
     listener = MyListener(zc, loop, avahi_q)
-    browser = ServiceBrowser(zc, "_comitup._tcp.local.", listener)
+    ServiceBrowser(zc, "_comitup._tcp.local.", listener)
 
-    while True:
-        msg = await avahi_q.get()
-        await event_queue.put(msg)
-        print(msg)
+    try:
+        while True:
+            msg = await avahi_q.get()
+            await event_queue.put(msg)
+    finally:
+        zeroconf.close()
 
 
 def main():

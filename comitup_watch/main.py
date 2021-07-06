@@ -5,14 +5,10 @@
 
 
 import asyncio
-import re
-from datetime import datetime
-from typing import List, Set
 
-import dbussy
 import ravel
 
-from . import devicemon, comitup_mon, avahi_watch
+from . import avahi_watch, comitup_mon, devicemon
 
 
 async def main_async(bus):
@@ -23,13 +19,12 @@ async def main_async(bus):
     devmon = devicemon.DeviceMonitor(bus, event_queue)
     await devmon.startup()
 
-    avahimon = asyncio.create_task(avahi_watch.amain(event_queue))
+    avahimon = asyncio.create_task(avahi_watch.amain(event_queue))  # noqa
 
     await comitupmon.run()
 
 
 def main():
-    print("starting")
     loop = asyncio.get_event_loop()
 
     bus = ravel.system_bus()

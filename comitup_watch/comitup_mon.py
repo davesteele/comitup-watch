@@ -1,7 +1,10 @@
 import asyncio
+import os
+import re
 from bisect import bisect_left
 from functools import total_ordering
-from typing import Optional
+
+from tabulate import tabulate
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
@@ -99,10 +102,64 @@ class ComitupList:
 class ComitupMon:
     def __init__(self):
         self.q = asyncio.Queue()
+        self.clist = ComitupList()
 
     def event_queue(self):
         return self.q
 
+    def get_host(self, hostname):
+        host = self.clist.get_host(hostname)
+
+        if host is None:
+            host = ComitupHost(hostname)
+            self.clist.add_host(host)
+
+        return host
+
+    def proc_dev_msg(self, msg):
+        host = self.get_host(msg.ssid)
+        if msg.action.name == "ADDED":
+            host.add_nm(msg)
+        else:
+            host.rm_nm()
+            if not host.has_data():
+                self.clist.rm_host(msg.ssid)
+
+        self.print_list()
+
+    def proc_avahi_msg(self, msg):
+        match = re.search(r"^([^\.]+)", msg.key)
+        hostname = match.group(1)
+
+        host = self.get_host(hostname)
+        if msg.action.name == "ADDED":
+            host.add_avahi(msg)
+        else:
+            host.rm_avahi()
+            if not host.has_data():
+                self.clist.rm_host(hostname)
+
+        self.print_list()
+
+    def test_table(self):
+        table = []
+        for host in self.clist:
+            table.append(
+                [host.host, host.ssid, host.domain, host.ipv4, host.ipv6]
+            )
+        return table
+
+    def print_list(self):
+        os.system("clear")
+        header = ["Name", "SSID", "Domain Name", "IPv4", "IPv6"]
+
+        print(tabulate(self.test_table(), header))
+
     async def run(self):
         while True:
-            await asyncio.sleep(1)
+            msg = await self.q.get()
+
+            if type(msg) == DeviceMonMsg:
+                self.proc_dev_msg(msg)
+            elif type(msg) == AvahiMessage:
+                self.proc_avahi_msg(msg)

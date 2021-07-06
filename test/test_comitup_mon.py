@@ -1,26 +1,21 @@
 
 import pytest
 from collections import namedtuple
+from typing import List
+from unittest.mock import Mock
 
-from comitup_watch.comitup_mon import ComitupHost, ComitupList
+from comitup_watch.comitup_mon import ComitupHost, ComitupList, ComitupMon
 from comitup_watch.avahi_watch import AvahiAction, AvahiMessage
 from comitup_watch.devicemon import DeviceMonMsg, DeviceMonAction
+
+##############################################################################
+# ComitupHost
+##############################################################################
 
 @pytest.fixture
 def chost():
     return ComitupHost("foo")
 
-
-@pytest.fixture
-def clist():
-    fxt = ComitupList()
-
-    fxt.list = [
-        ComitupHost("bravo"),
-        ComitupHost("delta"),
-    ]
-
-    return fxt
 
 def test_comituphost_create(chost):
     assert chost.host == "foo"
@@ -61,6 +56,22 @@ def test_comituphost_dev_msg(chost, test_rm):
         chost.rm_nm()
         assert not chost.has_data()
         assert chost.ssid is None
+
+
+##############################################################################
+# ComitupList
+##############################################################################
+
+@pytest.fixture
+def clist():
+    fxt = ComitupList()
+
+    fxt.list = [
+        ComitupHost("bravo"),
+        ComitupHost("delta"),
+    ]
+
+    return fxt
 
 def test_comituplist_fxt(clist):
     for term in ["bravo", "delta"]:
@@ -119,3 +130,99 @@ def test_comituplist_rm_host(clist):
 @pytest.mark.parametrize("index", range(2))
 def test_comituplist_get_item(clist, index):
     assert clist[index] == clist.list[index]
+
+##############################################################################
+# ComitupMon
+##############################################################################
+
+def in_table(table: List[List[str]], teststr: str) -> bool:
+    return teststr in [y for x in table for y in x]
+
+def host_exists(com_mon, hostname):
+    return hostname in [x.host for x in com_mon.clist]
+
+def send_avahi_msg(dev_mon, action, hostname) -> None:
+    msg_action = getattr(AvahiAction, action)
+    msg = AvahiMessage(
+        msg_action,
+        hostname + "._comitup._tcp.local",
+        hostname,
+        hostname + ".local",
+        "ipv4-" + hostname,
+        "ipv6-" + hostname,
+    )
+    dev_mon.proc_avahi_msg(msg)
+
+def send_nm_msg(dev_mon, action, hostname) -> None:
+    msg_action = getattr(DeviceMonAction, action)
+    msg = DeviceMonMsg(msg_action, hostname)
+    dev_mon.proc_dev_msg(msg)
+
+@pytest.fixture
+def com_mon(monkeypatch):
+    monkeypatch.setattr("comitup_watch.comitup_mon.ComitupMon.print_list", Mock())
+
+    fxt = ComitupMon()
+
+    send_avahi_msg(fxt, "ADDED", "host1")
+    send_nm_msg(fxt, "ADDED", "host2")
+
+    return fxt
+
+def test_in_table():
+    testtable = [
+        ["one", "two"],
+        ["three", "four"],
+    ]
+
+    assert in_table(testtable, "one")
+    assert in_table(testtable, "four")
+    assert not in_table(testtable, "five")
+
+def test_comitupmon_fxt(com_mon):
+    assert len(com_mon.clist) == 2
+
+    assert host_exists(com_mon, "host1")
+    assert host_exists(com_mon, "host2")
+    assert not host_exists(com_mon, "host3")
+
+def test_comitupmon_add_twice(com_mon):
+    send_avahi_msg(com_mon, "ADDED", "host1")
+    send_nm_msg(com_mon, "ADDED", "host2")
+
+    assert len(com_mon.clist) == 2
+
+    assert host_exists(com_mon, "host1")
+    assert host_exists(com_mon, "host2")
+    assert not host_exists(com_mon, "host3")
+
+def test_comitupmon_del_avahi(com_mon):
+    send_avahi_msg(com_mon, "REMOVED", "host1")
+
+    assert not host_exists(com_mon, "host1")
+    assert len(com_mon.clist) == 1
+
+def test_comitupmon_del_nm(com_mon):
+    send_nm_msg(com_mon, "REMOVED", "host2")
+
+    assert not host_exists(com_mon, "host2")
+    assert len(com_mon.clist) == 1
+
+def test_comitupmon_add_and_del(com_mon):
+    send_nm_msg(com_mon, "ADDED", "host1")
+    assert host_exists(com_mon, "host1")
+
+    send_nm_msg(com_mon, "REMOVED", "host1")
+    assert host_exists(com_mon, "host1")
+
+    send_avahi_msg(com_mon, "REMOVED", "host1")
+    assert not host_exists(com_mon, "host1")
+
+    send_avahi_msg(com_mon, "ADDED", "host2")
+    assert host_exists(com_mon, "host2")
+
+    send_avahi_msg(com_mon, "REMOVED", "host2")
+    assert host_exists(com_mon, "host2")
+
+    send_nm_msg(com_mon, "REMOVED", "host2")
+    assert not host_exists(com_mon, "host2")
