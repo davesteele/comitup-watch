@@ -44,16 +44,30 @@ class MyListener:
         )
         asyncio.run_coroutine_threadsafe(self.q.put(msg), self.loop)
 
-    def get_ipv4(self, addrlist: List[str]) -> Optional[str]:
+    def get_ipv4(self, addrlist: List[str], si) -> Optional[str]:
         for candidate in addrlist:
             if re.search(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", candidate):
                 return candidate
+
+        if b"ipaddr" in si.properties:
+            candidate = si.properties[b"ipaddr"].decode()
+
+            if candidate:
+                return candidate
+
         return None
 
-    def get_ipv6(self, addrlist: List[str]) -> Optional[str]:
+    def get_ipv6(self, addrlist: List[str], si) -> Optional[str]:
         for candidate in addrlist:
             if re.search("^[0-9a-f:]+$", candidate):
                 return candidate
+
+        if b"ip6addr" in si.properties:
+            candidate = si.properties[b"ip6addr"].decode()
+
+            if candidate:
+                return candidate
+
         return None
 
     def add_service(self, zeroconf, tipe, name):
@@ -64,8 +78,8 @@ class MyListener:
             name,
             si.get_name(),
             si.properties[b"hostname"].decode(),
-            self.get_ipv4(si.parsed_addresses()),
-            self.get_ipv6(si.parsed_addresses()),
+            self.get_ipv4(si.parsed_addresses(), si),
+            self.get_ipv6(si.parsed_addresses(), si),
         )
         asyncio.run_coroutine_threadsafe(self.q.put(msg), self.loop)
 
