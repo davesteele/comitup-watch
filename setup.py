@@ -40,7 +40,7 @@ setup(
     data_files=[],
     install_requires=["dbussy", "tabulate", "zeroconf"],
     setup_requires=["pytest-runner"],
-    tests_require=['pytest'],
+    tests_require=["pytest", "pytest-asyncio"],
     author="David Steele",
     author_email="steele@debian.org",
     url='https://davesteele.github.io/comitup-watch/',

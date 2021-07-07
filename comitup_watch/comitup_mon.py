@@ -8,6 +8,7 @@ from tabulate import tabulate
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
+from .pingmon import PingMessage
 
 
 @total_ordering
@@ -23,11 +24,14 @@ class ComitupHost:
         "ssid": "ssid",
     }
 
+    ping_attrs = {"ping_status": "name"}
+
     def __init__(self, hostname) -> None:
         self.host: str = hostname
 
         self.all_attrs = self.avahi_attrs.copy()
         self.all_attrs.update(self.nm_attrs)
+        self.all_attrs.update(self.ping_attrs)
 
         for key in self.all_attrs:
             setattr(self, key, None)
@@ -102,10 +106,14 @@ class ComitupList:
 class ComitupMon:
     def __init__(self):
         self.q = asyncio.Queue()
+        self.ping_q = asyncio.Queue()
         self.clist = ComitupList()
 
     def event_queue(self):
         return self.q
+
+    def ping_queue(self):
+        return self.ping_q
 
     def get_host(self, hostname):
         host = self.clist.get_host(hostname)
@@ -134,24 +142,58 @@ class ComitupMon:
         host = self.get_host(hostname)
         if msg.action.name == "ADDED":
             host.add_avahi(msg)
+            try:
+                self.ping_q.put_nowait(hostname)
+            except asyncio.QeueueFull:
+                pass
+
         else:
             host.rm_avahi()
+            host.ping_status = None
             if not host.has_data():
                 self.clist.rm_host(hostname)
 
         self.print_list()
 
+    def proc_ping_msg(self, msg):
+        host = self.get_host(msg.name)
+
+        old_value = host.ping_status
+
+        if msg.action.name == "ADDED":
+            host.ping_status = True
+        else:
+            if host.ping_status is not None:
+                host.ping_status = False
+            if not host.has_data():
+                self.clist.rm_host(msg.ssid)
+
+        if old_value != host.ping_status:
+            self.print_list()
+
     def test_table(self):
         table = []
         for host in self.clist:
+            if host.ping_status is None:
+                pstat = None
+            else:
+                pstat = "Yes" if host.ping_status else "No"
+
             table.append(
-                [host.host, host.ssid, host.domain, host.ipv4, host.ipv6]
+                [
+                    host.host,
+                    host.ssid,
+                    host.domain,
+                    host.ipv4,
+                    host.ipv6,
+                    pstat,
+                ]
             )
         return table
 
     def print_list(self):
         os.system("clear")
-        header = ["Name", "SSID", "Domain Name", "IPv4", "IPv6"]
+        header = ["Name", "SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
         print(tabulate(self.test_table(), header))
 
@@ -163,3 +205,5 @@ class ComitupMon:
                 self.proc_dev_msg(msg)
             elif type(msg) == AvahiMessage:
                 self.proc_avahi_msg(msg)
+            elif type(msg) == PingMessage:
+                self.proc_ping_msg(msg)

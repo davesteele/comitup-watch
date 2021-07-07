@@ -8,18 +8,23 @@ import asyncio
 
 import ravel
 
-from . import avahi_watch, comitup_mon, devicemon
+from . import avahi_watch, comitup_mon, devicemon, pingmon
 
 
 async def main_async(bus):
 
+    print("starting main_async")
     comitupmon = comitup_mon.ComitupMon()
     event_queue = comitupmon.event_queue()
+    ping_queue = comitupmon.ping_queue()
 
     devmon = devicemon.DeviceMonitor(bus, event_queue)
     await devmon.startup()
 
     avahimon = asyncio.create_task(avahi_watch.amain(event_queue))  # noqa
+    ping_mon = asyncio.create_task(  # noqa
+        pingmon.amain(event_queue, ping_queue, comitupmon.clist)
+        )
 
     await comitupmon.run()
 
