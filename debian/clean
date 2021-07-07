@@ -1,0 +1,4 @@
+dist/
+.pytest_cache/
+.eggs/
+comitup_watch.egg-info/

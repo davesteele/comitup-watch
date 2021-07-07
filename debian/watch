@@ -1,0 +1,5 @@
+version=3
+
+
+https://github.com/davesteele/comitup-watch/tags .*main/v?(\d\S*)\.tar\.gz
+

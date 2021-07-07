@@ -1,0 +1,11 @@
+--- a/setup.cfg
++++ b/setup.cfg
+@@ -47,7 +47,7 @@
+ 
+ [options.entry_points]
+ console_scripts =
+-    comitup_watch = comitup_watch.main:main
++    comitup_watch-cmd = comitup_watch.main:main
+ 
+ [bdist_rpm]
+ release = 1
