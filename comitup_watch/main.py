@@ -13,7 +13,6 @@ from . import avahi_watch, comitup_mon, devicemon, pingmon
 
 async def main_async(bus):
 
-    print("starting main_async")
     comitupmon = comitup_mon.ComitupMon()
     event_queue = comitupmon.event_queue()
     ping_queue = comitupmon.ping_queue()
