@@ -181,7 +181,6 @@ class ComitupMon:
 
             table.append(
                 [
-                    host.host,
                     host.ssid,
                     host.domain,
                     host.ipv4,
@@ -193,7 +192,7 @@ class ComitupMon:
 
     def print_list(self):
         os.system("clear")
-        header = ["Name", "SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
+        header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
         print(tabulate(self.test_table(), header))
 
