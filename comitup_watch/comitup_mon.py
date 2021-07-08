@@ -66,7 +66,7 @@ class ComitupHost:
     def __init__(self, hostname, log) -> None:
         self.host: str = hostname
 
-        init_time = datetime.now() - 2*new_delta
+        init_time = datetime.now() - 2 * new_delta
         self.update_time = {
             "ping": init_time,
             "nm": init_time,
@@ -171,7 +171,6 @@ class ComitupHost:
 
         return output
 
-
     def get_display_row(self):
         if self.ping_status is None:
             pstat = None
@@ -185,6 +184,7 @@ class ComitupHost:
             self.colorize("avahi", self.ipv6),
             self.colorize("ping", pstat),
         ]
+
 
 class ComitupList:
     def __init__(self, log):
@@ -237,7 +237,6 @@ class ComitupMon:
 
         self.clist = ComitupList(self.log)
 
-
         self.log.info("Starting comitup-watch")
 
     def event_queue(self):
@@ -266,7 +265,6 @@ class ComitupMon:
             if not host.has_data():
                 self.clist.rm_host(msg.ssid)
 
-
     def proc_avahi_msg(self, msg):
         match = re.search(r"^([^\.]+)", msg.key)
         hostname = match.group(1)
@@ -287,7 +285,6 @@ class ComitupMon:
             if not host.has_data():
                 self.clist.rm_host(hostname)
 
-
     def proc_ping_msg(self, msg):
         host = self.get_host(msg.name)
 
@@ -298,22 +295,27 @@ class ComitupMon:
             if not host.has_data():
                 self.clist.rm_host(msg.ssid)
 
-
-
     def test_table(self):
         table = [x.get_display_row() for x in self.clist]
         return table
 
     def print_list(self):
         os.system("clear")
+
         header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
-        print(tabulate(self.test_table(), header))
+        table_text = tabulate(self.test_table(), header)
+        width = max(len(x) for x in table_text.split("\n"))
+
+        print("-" * width)
+        print("COMITUP-WATCH".center(width))
+        print("-" * width)
+
+        print(table_text)
 
     async def run(self):
         class TimerMessage(NamedTuple):
             pass
-
 
         async def comitup_timer(q):
             while True:

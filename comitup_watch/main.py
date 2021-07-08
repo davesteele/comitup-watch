@@ -23,7 +23,7 @@ async def main_async(bus):
     avahimon = asyncio.create_task(avahi_watch.amain(event_queue))  # noqa
     ping_mon = asyncio.create_task(  # noqa
         pingmon.amain(event_queue, ping_queue, comitupmon.clist)
-        )
+    )
 
     await comitupmon.run()
 
