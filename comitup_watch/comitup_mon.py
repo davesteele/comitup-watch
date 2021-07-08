@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import os
 import re
 from bisect import bisect_left
 from datetime import datetime, timedelta
 from functools import total_ordering
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 from typing import NamedTuple
 
 from colorama import Fore, Back, Style
@@ -15,6 +18,33 @@ from .pingmon import PingMessage
 
 
 new_delta = timedelta(seconds=30)
+
+
+def deflog(verbose: bool = False) -> logging.Logger:
+    level = logging.INFO
+    if verbose:
+        level = logging.DEBUG
+
+    logdirpath = Path("~/.config/comitup-watch").expanduser()
+    if not logdirpath.is_dir():
+        logdirpath.mkdir(parents=True)
+
+    log = logging.getLogger("comitup-watch")
+    log.setLevel(level)
+    handler = TimedRotatingFileHandler(
+        str(logdirpath / "comitup-watch.log"),
+        encoding="utf=8",
+        when="W0",
+        backupCount=8,
+    )
+    fmtr = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(fmtr)
+    log.addHandler(handler)
+
+    return log
+
 
 @total_ordering
 class ComitupHost:
@@ -31,7 +61,7 @@ class ComitupHost:
 
     ping_attrs = {"ping_status": "name"}
 
-    def __init__(self, hostname) -> None:
+    def __init__(self, hostname, log) -> None:
         self.host: str = hostname
 
         init_time = datetime.now() - 2*new_delta
@@ -51,6 +81,8 @@ class ComitupHost:
 
         for key in self.all_attrs:
             setattr(self, key, None)
+
+        self.log = log
 
     def update(self, kind):
         self.update_time[kind] = datetime.now()
@@ -104,12 +136,14 @@ class ComitupHost:
 
     def add_ping(self, msg: PingMessage):
         if not self.ping_status:
+            self.log.info("Ping success - {}".format(self.host))
             self.update("ping")
 
         self.ping_status = True
 
     def rm_ping(self):
         if self.ping_status:
+            self.log.info("Ping failure - {}".format(self.host))
             self.update("ping")
 
         if self.ping_status is not None:
@@ -150,8 +184,9 @@ class ComitupHost:
         ]
 
 class ComitupList:
-    def __init__(self):
+    def __init__(self, log):
         self.list = []
+        self.log = log
 
     def __len__(self) -> None:
         return len(self.list)
@@ -194,7 +229,13 @@ class ComitupMon:
     def __init__(self):
         self.q = asyncio.Queue()
         self.ping_q = asyncio.Queue()
-        self.clist = ComitupList()
+
+        self.log = deflog()
+
+        self.clist = ComitupList(self.log)
+
+
+        self.log.info("Starting comitup-watch")
 
     def event_queue(self):
         return self.q
@@ -206,7 +247,7 @@ class ComitupMon:
         host = self.clist.get_host(hostname)
 
         if host is None:
-            host = ComitupHost(hostname)
+            host = ComitupHost(hostname, self.log)
             self.clist.add_host(host)
 
         return host
@@ -214,8 +255,10 @@ class ComitupMon:
     def proc_dev_msg(self, msg):
         host = self.get_host(msg.ssid)
         if msg.action.name == "ADDED":
+            self.log.info("Added SSID = {}".format(host.host))
             host.add_nm(msg)
         else:
+            self.log.info("Removed SSID = {}".format(host.host))
             host.rm_nm()
             if not host.has_data():
                 self.clist.rm_host(msg.ssid)
@@ -227,6 +270,7 @@ class ComitupMon:
 
         host = self.get_host(hostname)
         if msg.action.name == "ADDED":
+            self.log.info("Added Network Data = {}".format(hostname))
             host.add_avahi(msg)
             try:
                 self.ping_q.put_nowait(hostname)
@@ -234,6 +278,7 @@ class ComitupMon:
                 pass
 
         else:
+            self.log.info("Removed Network Data = {}".format(hostname))
             host.rm_avahi()
             host.ping_status = None
             if not host.has_data():
