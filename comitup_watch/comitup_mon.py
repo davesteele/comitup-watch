@@ -305,7 +305,7 @@ class ComitupMon:
         header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
         table_text = tabulate(self.test_table(), header)
-        width = max(len(x) for x in table_text.split("\n"))
+        width = max(len(x) for x in table_text.split("\n") if "--" in x)
 
         print("-" * width)
         print("COMITUP-WATCH".center(width))
