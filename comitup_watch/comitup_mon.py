@@ -19,6 +19,8 @@ from .pingmon import PingMessage
 
 new_delta = timedelta(seconds=30)
 
+start_time = datetime.now()
+
 
 def deflog(verbose: bool = False) -> logging.Logger:
     level = logging.INFO
@@ -89,8 +91,9 @@ class ComitupHost:
         self.update_flag = True
 
     def is_new(self, kind):
-        if datetime.now() - self.update_time[kind] < new_delta:
-            return True
+        if self.update_time[kind] - start_time > timedelta(seconds=5):
+            if datetime.now() - self.update_time[kind] < new_delta:
+                return True
 
         return False
 
