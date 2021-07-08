@@ -2,14 +2,19 @@ import asyncio
 import os
 import re
 from bisect import bisect_left
+from datetime import datetime, timedelta
 from functools import total_ordering
+from typing import NamedTuple
 
+from colorama import Fore, Back, Style
 from tabulate import tabulate
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
 from .pingmon import PingMessage
 
+
+new_delta = timedelta(seconds=30)
 
 @total_ordering
 class ComitupHost:
@@ -29,6 +34,17 @@ class ComitupHost:
     def __init__(self, hostname) -> None:
         self.host: str = hostname
 
+        init_time = datetime.now() - 2*new_delta
+        self.update_time = {
+            "ping": init_time,
+            "nm": init_time,
+            "avahi": init_time,
+        }
+
+        self.update_flag = True
+
+        self.last_check = datetime.now()
+
         self.all_attrs = self.avahi_attrs.copy()
         self.all_attrs.update(self.nm_attrs)
         self.all_attrs.update(self.ping_attrs)
@@ -36,21 +52,68 @@ class ComitupHost:
         for key in self.all_attrs:
             setattr(self, key, None)
 
+    def update(self, kind):
+        self.update_time[kind] = datetime.now()
+        self.update_flag = True
+
+    def is_new(self, kind):
+        if datetime.now() - self.update_time[kind] < new_delta:
+            return True
+
+        return False
+
+    def needs_update(self):
+
+        now = datetime.now()
+
+        for kind in ["ping", "nm", "avahi"]:
+            if self.last_check < self.update_time[kind] + new_delta < now:
+                self.update_flag = True
+
+        self.last_check = now
+
+        if self.update_flag:
+            self.update_flag = False
+            return True
+        else:
+            return False
+
     def add_avahi(self, msg: AvahiMessage) -> None:
         for key in self.avahi_attrs:
             setattr(self, key, getattr(msg, self.avahi_attrs[key]))
+
+        self.update("avahi")
 
     def rm_avahi(self) -> None:
         for key in self.avahi_attrs:
             setattr(self, key, None)
 
+        self.update("avahi")
+
     def add_nm(self, msg: DeviceMonMsg) -> None:
         for key in self.nm_attrs:
             setattr(self, key, getattr(msg, self.nm_attrs[key]))
 
+        self.update("nm")
+
     def rm_nm(self) -> None:
         for key in self.nm_attrs:
             setattr(self, key, None)
+
+        self.update("nm")
+
+    def add_ping(self, msg: PingMessage):
+        if not self.ping_status:
+            self.update("ping")
+
+        self.ping_status = True
+
+    def rm_ping(self):
+        if self.ping_status:
+            self.update("ping")
+
+        if self.ping_status is not None:
+            self.ping_status = False
 
     def has_data(self) -> bool:
         return any([getattr(self, x) for x in self.all_attrs])
@@ -61,6 +124,30 @@ class ComitupHost:
     def __lt__(self, other):
         return self.host < other.host
 
+    def colorize(self, kind, text):
+        output = text
+        if type(output) != str:
+            output = ""
+
+        if self.is_new(kind):
+            output = Fore.GREEN + output + Style.RESET_ALL
+
+        return output
+
+
+    def get_display_row(self):
+        if self.ping_status is None:
+            pstat = None
+        else:
+            pstat = "Yes" if self.ping_status else "No"
+
+        return [
+            self.colorize("nm", self.ssid),
+            self.colorize("avahi", self.domain),
+            self.colorize("avahi", self.ipv4),
+            self.colorize("avahi", self.ipv6),
+            self.colorize("ping", pstat),
+        ]
 
 class ComitupList:
     def __init__(self):
@@ -133,7 +220,6 @@ class ComitupMon:
             if not host.has_data():
                 self.clist.rm_host(msg.ssid)
 
-        self.print_list()
 
     def proc_avahi_msg(self, msg):
         match = re.search(r"^([^\.]+)", msg.key)
@@ -153,41 +239,21 @@ class ComitupMon:
             if not host.has_data():
                 self.clist.rm_host(hostname)
 
-        self.print_list()
 
     def proc_ping_msg(self, msg):
         host = self.get_host(msg.name)
 
-        old_value = host.ping_status
-
         if msg.action.name == "ADDED":
-            host.ping_status = True
+            host.add_ping(msg)
         else:
-            if host.ping_status is not None:
-                host.ping_status = False
+            host.rm_ping()
             if not host.has_data():
                 self.clist.rm_host(msg.ssid)
 
-        if old_value != host.ping_status:
-            self.print_list()
+
 
     def test_table(self):
-        table = []
-        for host in self.clist:
-            if host.ping_status is None:
-                pstat = None
-            else:
-                pstat = "Yes" if host.ping_status else "No"
-
-            table.append(
-                [
-                    host.ssid,
-                    host.domain,
-                    host.ipv4,
-                    host.ipv6,
-                    pstat,
-                ]
-            )
+        table = [x.get_display_row() for x in self.clist]
         return table
 
     def print_list(self):
@@ -197,6 +263,17 @@ class ComitupMon:
         print(tabulate(self.test_table(), header))
 
     async def run(self):
+        class TimerMessage(NamedTuple):
+            pass
+
+
+        async def comitup_timer(q):
+            while True:
+                await asyncio.sleep(1)
+                await q.put(TimerMessage())
+
+        asyncio.create_task(comitup_timer(self.q))
+
         while True:
             msg = await self.q.get()
 
@@ -206,3 +283,6 @@ class ComitupMon:
                 self.proc_avahi_msg(msg)
             elif type(msg) == PingMessage:
                 self.proc_ping_msg(msg)
+
+            if any([x.needs_update() for x in self.clist]):
+                self.print_list()
