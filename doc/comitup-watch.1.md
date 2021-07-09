@@ -29,6 +29,9 @@ series of columns:
     A Comitup device with two WiFi interfaces, running in _appliance mode_, can
     show both an active SSID and local network information at the same time.
 
+    Note that all visible SSIDs are displayed in this column - not just those
+    representing Comitup-enabled devices.
+
     SSID information is collected from **NetworkManager**.
 
     The accuracy of thie column is improved if there is an unconnected WiFi
