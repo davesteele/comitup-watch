@@ -21,7 +21,7 @@ class AvahiAction(Enum):
 class AvahiMessage(NamedTuple):
     action: AvahiAction
     key: str
-    name: str
+    # name: str
     host: str
     ipv4: str
     ipv6: str
@@ -37,7 +37,7 @@ class MyListener:
         msg = AvahiMessage(
             AvahiAction.REMOVED,
             name,
-            None,
+            # None,
             None,
             None,
             None,
@@ -73,15 +73,16 @@ class MyListener:
     def add_service(self, zeroconf, tipe, name):
         si = self.zc.get_service_info("_comitup._tcp.local.", name)
 
-        msg = AvahiMessage(
-            AvahiAction.ADDED,
-            name,
-            si.get_name(),
-            si.properties[b"hostname"].decode(),
-            self.get_ipv4(si.parsed_addresses(), si),
-            self.get_ipv6(si.parsed_addresses(), si),
-        )
-        asyncio.run_coroutine_threadsafe(self.q.put(msg), self.loop)
+        if si:
+            msg = AvahiMessage(
+                AvahiAction.ADDED,
+                name,
+                # si.get_name(),
+                si.properties[b"hostname"].decode(),
+                self.get_ipv4(si.parsed_addresses(), si),
+                self.get_ipv6(si.parsed_addresses(), si),
+            )
+            asyncio.run_coroutine_threadsafe(self.q.put(msg), self.loop)
 
     def update_service(self, *args, **kwargs):
         pass

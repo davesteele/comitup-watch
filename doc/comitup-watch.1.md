@@ -1,25 +1,16 @@
+% comitup-watch(1)
+%
+% July 2021
 
-# Comitup-Watch
-
-## Monitor local Comitup-enabled Devices
-
-![Comitup-Watch Screenshot](https://davesteele.github.io/comitup-watch/images/comitup-watch.png)
-
-
-[Comitup](https://davesteele.github.io/comitup/) is a package that allows you to bootstrap headless devices on to the Internet via WiFi. Comitup-Watch lets you see the status of pending and connected Comitup-enabled devices on your local network.
-
-## Man Page
-
-
-### NAME
+# NAME
 
 comitup-watch -- monitor local Comitup-enabled devices
 
-#### SYNOPSIS
+## SYNOPSIS
 
     $ `comitup-watch`
-
-#### DESCRIPTION
+    
+## DESCRIPTION
 
 The **comitup-watch** program is a terminal utility that displays the status of
 local WiFi Access Points and network host names/ip addresses. It is targeted
@@ -69,10 +60,11 @@ series of columns:
 
 Recent information in the table is shown in green.
 
-#### COPYRIGHT
+## COPYRIGHT
 
 Comitup-watch is Copyright (C) 2021 David Steele &lt;steele@debian.org&gt;
 
-#### SEE ALSO
+## SEE ALSO
 
-[comitup(8)](https://davesteele.github.io/comitup/man/comitup.pdf)
+comitup(8)
+
