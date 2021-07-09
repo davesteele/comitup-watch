@@ -73,7 +73,7 @@ class MyListener:
     def add_service(self, zeroconf, tipe, name):
         si = self.zc.get_service_info("_comitup._tcp.local.", name)
 
-        if si:
+        if si and b"hostname" in si.properties:
             msg = AvahiMessage(
                 AvahiAction.ADDED,
                 name,
