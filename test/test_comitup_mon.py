@@ -14,7 +14,7 @@ from comitup_watch.devicemon import DeviceMonMsg, DeviceMonAction
 
 @pytest.fixture
 def chost():
-    return ComitupHost("foo")
+    return ComitupHost("foo", Mock())
 
 
 def test_comituphost_create(chost):
@@ -26,14 +26,14 @@ def test_comituphost_create(chost):
     assert not chost.has_data()
 
 def test_comituphost_compare(chost):
-    host2 = ComitupHost("bar")
+    host2 = ComitupHost("bar", Mock())
 
     assert chost == chost
     assert chost > host2
 
 @pytest.mark.parametrize("test_rm", [True, False])
 def test_comituphost_avahi_msg(chost, test_rm):
-    chost.add_avahi(AvahiMessage(AvahiAction.ADDED, "key", "name", "host", "ipv4", "ipv6"))
+    chost.add_avahi(AvahiMessage(AvahiAction.ADDED, "key", "host", "ipv4", "ipv6"))
 
     assert chost.has_data()
     assert chost.avahi_key == "key"
@@ -64,11 +64,11 @@ def test_comituphost_dev_msg(chost, test_rm):
 
 @pytest.fixture
 def clist():
-    fxt = ComitupList()
+    fxt = ComitupList(Mock())
 
     fxt.list = [
-        ComitupHost("bravo"),
-        ComitupHost("delta"),
+        ComitupHost("bravo", Mock()),
+        ComitupHost("delta", Mock()),
     ]
 
     return fxt
@@ -101,7 +101,7 @@ OrderCase = namedtuple("OrderCase", ["input", "output", "index"])
     ],
 )
 def test_comituplist_add_host(clist, case):
-    index = clist.add_host(ComitupHost(case.input))
+    index = clist.add_host(ComitupHost(case.input, Mock()))
 
     assert [x.host for x in clist.list] == case.output
 
@@ -146,7 +146,7 @@ def send_avahi_msg(dev_mon, action, hostname) -> None:
     msg = AvahiMessage(
         msg_action,
         hostname + "._comitup._tcp.local",
-        hostname,
+        # hostname,
         hostname + ".local",
         "ipv4-" + hostname,
         "ipv6-" + hostname,
