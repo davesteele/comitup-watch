@@ -35,4 +35,7 @@ def main():
     bus.attach_asyncio(loop)
 
     loop.create_task(main_async(bus))
-    loop.run_forever()
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("\r  ")
