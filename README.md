@@ -6,7 +6,7 @@
 ![Comitup-Watch Screenshot](https://davesteele.github.io/comitup-watch/images/comitup-watch.png)
 
 
-[Comitup]() is a package that allows you to bootstrap headless devices on to the Internet via WiFi. Comitup-Watch lets you see the status of pending and connected Comitup-enabled devices on your local network.
+[Comitup](https://davesteele.github.io/comitup/) is a package that allows you to bootstrap headless devices on to the Internet via WiFi. Comitup-Watch lets you see the status of pending and connected Comitup-enabled devices on your local network.
 
 ## Man Page
 
