@@ -117,6 +117,8 @@ class ComitupHost:
         for key in self.avahi_attrs:
             setattr(self, key, getattr(msg, self.avahi_attrs[key]))
 
+        self.log.info("Connection info - {}: {} - {}".format(self.domain, self.ipv4, self.ipv6))
+
         self.update("avahi")
 
     def rm_avahi(self) -> None:
