@@ -4,7 +4,7 @@ import os
 import re
 from bisect import bisect_left
 from datetime import datetime, timedelta
-from functools import total_ordering
+from functools import total_ordering, wraps
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import NamedTuple
@@ -48,6 +48,18 @@ def deflog(verbose: bool = False) -> logging.Logger:
     return log
 
 
+def Update(kind):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            self.update(kind)
+            return fn(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 @total_ordering
 class ComitupHost:
     avahi_attrs = {
@@ -63,7 +75,7 @@ class ComitupHost:
 
     ping_attrs = {"ping_status": "name"}
 
-    def __init__(self, hostname, log) -> None:
+    def __init__(self, hostname, event_q, log) -> None:
         self.host: str = hostname
 
         init_time = datetime.now() - 2 * new_delta
@@ -84,11 +96,22 @@ class ComitupHost:
         for key in self.all_attrs:
             setattr(self, key, None)
 
+        self.q = event_q
+
         self.log = log
 
     def update(self, kind):
         self.update_time[kind] = datetime.now()
         self.update_flag = True
+
+        class UpdateMessage(NamedTuple):
+            host: str
+
+        async def display_ping(q):
+            await asyncio.sleep(new_delta.seconds + 0.1)
+            await q.put(UpdateMessage(self.host))
+
+        asyncio.create_task(display_ping(self.q))
 
     def is_new(self, kind):
         if self.update_time[kind] - start_time > timedelta(seconds=5):
@@ -113,31 +136,33 @@ class ComitupHost:
         else:
             return False
 
+    @Update("avahi")
     def add_avahi(self, msg: AvahiMessage) -> None:
         for key in self.avahi_attrs:
             setattr(self, key, getattr(msg, self.avahi_attrs[key]))
 
-        self.log.info("Connection info - {}: {} - {}".format(self.domain, self.ipv4, self.ipv6))
+        self.log.info(
+            "Connection info - {}: {} - {}".format(
+                self.domain, self.ipv4, self.ipv6
+            )
+        )
 
-        self.update("avahi")
-
+    @Update("avahi")
     def rm_avahi(self) -> None:
         for key in self.avahi_attrs:
             setattr(self, key, None)
 
         self.update("avahi")
 
+    @Update("nm")
     def add_nm(self, msg: DeviceMonMsg) -> None:
         for key in self.nm_attrs:
             setattr(self, key, getattr(msg, self.nm_attrs[key]))
 
-        self.update("nm")
-
+    @Update("nm")
     def rm_nm(self) -> None:
         for key in self.nm_attrs:
             setattr(self, key, None)
-
-        self.update("nm")
 
     def add_ping(self, msg: PingMessage):
         if not self.ping_status:
@@ -189,9 +214,10 @@ class ComitupHost:
 
 
 class ComitupList:
-    def __init__(self, log):
+    def __init__(self, event_q, log):
         self.list = []
         self.log = log
+        self.q = event_q
 
     def __len__(self) -> None:
         return len(self.list)
@@ -237,7 +263,7 @@ class ComitupMon:
 
         self.log = deflog()
 
-        self.clist = ComitupList(self.log)
+        self.clist = ComitupList(self.q, self.log)
 
         self.log.info("Starting comitup-watch")
 
@@ -251,7 +277,7 @@ class ComitupMon:
         host = self.clist.get_host(hostname)
 
         if host is None:
-            host = ComitupHost(hostname, self.log)
+            host = ComitupHost(hostname, self.q, self.log)
             self.clist.add_host(host)
 
         return host
@@ -316,16 +342,6 @@ class ComitupMon:
         print(table_text)
 
     async def run(self):
-        class TimerMessage(NamedTuple):
-            pass
-
-        async def comitup_timer(q):
-            while True:
-                await asyncio.sleep(1)
-                await q.put(TimerMessage())
-
-        asyncio.create_task(comitup_timer(self.q))
-
         while True:
             msg = await self.q.get()
 
