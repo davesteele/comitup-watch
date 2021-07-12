@@ -31,9 +31,9 @@ def test_comituphost_compare(chost):
     assert chost == chost
     assert chost > host2
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("test_rm", [True, False])
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comituphost_avahi_msg(chost, test_rm, event_loop):
+async def test_comituphost_avahi_msg(chost, test_rm):
     chost.add_avahi(AvahiMessage(AvahiAction.ADDED, "key", "host", "ipv4", "ipv6"))
 
     assert chost.has_data()
@@ -44,9 +44,9 @@ def test_comituphost_avahi_msg(chost, test_rm, event_loop):
         assert not chost.has_data()
         assert chost.avahi_key is None
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("test_rm", [True, False])
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comituphost_dev_msg(chost, test_rm):
+async def test_comituphost_dev_msg(chost, test_rm):
     assert chost.ssid is None
 
     chost.add_nm(DeviceMonMsg(DeviceMonAction.ADDED, "foo"))
@@ -161,8 +161,9 @@ def send_nm_msg(dev_mon, action, hostname) -> None:
     dev_mon.proc_dev_msg(msg)
 
 @pytest.fixture
-def com_mon(monkeypatch):
+async def com_mon(monkeypatch):
     monkeypatch.setattr("comitup_watch.comitup_mon.ComitupMon.print_list", Mock())
+    monkeypatch.setattr("comitup_watch.comitup_mon.ComitupHost.update", Mock())
 
     fxt = ComitupMon()
 
@@ -181,16 +182,16 @@ def test_in_table():
     assert in_table(testtable, "four")
     assert not in_table(testtable, "five")
 
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comitupmon_fxt(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_fxt(com_mon):
     assert len(com_mon.clist) == 2
 
     assert host_exists(com_mon, "host1")
     assert host_exists(com_mon, "host2")
     assert not host_exists(com_mon, "host3")
 
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comitupmon_add_twice(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_add_twice(com_mon):
     send_avahi_msg(com_mon, "ADDED", "host1")
     send_nm_msg(com_mon, "ADDED", "host2")
 
@@ -200,22 +201,22 @@ def test_comitupmon_add_twice(com_mon):
     assert host_exists(com_mon, "host2")
     assert not host_exists(com_mon, "host3")
 
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comitupmon_del_avahi(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_del_avahi(com_mon):
     send_avahi_msg(com_mon, "REMOVED", "host1")
 
     assert not host_exists(com_mon, "host1")
     assert len(com_mon.clist) == 1
 
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comitupmon_del_nm(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_del_nm(com_mon):
     send_nm_msg(com_mon, "REMOVED", "host2")
 
     assert not host_exists(com_mon, "host2")
     assert len(com_mon.clist) == 1
 
-@pytest.mark.skip(reason="TODO: convert to coroutine")
-def test_comitupmon_add_and_del(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_add_and_del(com_mon):
     send_nm_msg(com_mon, "ADDED", "host1")
     assert host_exists(com_mon, "host1")
 
