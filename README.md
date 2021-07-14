@@ -8,6 +8,22 @@
 
 [Comitup](https://davesteele.github.io/comitup/) is a package that allows you to bootstrap headless devices on to the Internet via WiFi. Comitup-Watch lets you see the status of pending and connected Comitup-enabled devices on your local network.
 
+## Installing
+
+Download and install the [deb file](https://davesteele.github.io/comitup/latest/comitup-watch_latest.html).
+
+Or
+
+Add it via the Comitup Repository:
+
+  * Download and install [davesteele-comitup-apt-source](https://davesteele.github.io/comitup/latest/davesteele-comitup-apt-source_latest.html).
+  * Install:
+
+```
+sudo apt-get update
+sudo apt-get install comitup-watch
+```
+
 ## Man Page
 
 
