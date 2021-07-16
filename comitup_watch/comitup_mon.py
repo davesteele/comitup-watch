@@ -321,7 +321,7 @@ class ComitupMon:
         else:
             host.rm_ping()
             if not host.has_data():
-                self.clist.rm_host(msg.ssid)
+                self.clist.rm_host(msg.name)
 
     def test_table(self):
         table = [x.get_display_row() for x in self.clist]
