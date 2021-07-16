@@ -9,8 +9,8 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import NamedTuple
 
+import tabulate
 from colorama import Fore, Back, Style
-from tabulate import tabulate
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
@@ -202,7 +202,7 @@ class ComitupHost:
         if self.ping_status is None:
             pstat = None
         else:
-            pstat = "\u2714" if self.ping_status else "\u274C"
+            pstat = "  \u2714" if self.ping_status else "  \u274C"
 
         return [
             self.colorize("nm", self.ssid),
@@ -332,7 +332,8 @@ class ComitupMon:
 
         header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
-        table_text = tabulate(self.test_table(), header)
+        tabulate.PRESERVE_WHITESPACE = True
+        table_text = tabulate.tabulate(self.test_table(), header)
         width = max(len(x) for x in table_text.split("\n") if "--" in x)
 
         print("-" * width)
