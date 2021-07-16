@@ -202,7 +202,7 @@ class ComitupHost:
         if self.ping_status is None:
             pstat = None
         else:
-            pstat = "Yes" if self.ping_status else "No"
+            pstat = "\u2714" if self.ping_status else "\u274C"
 
         return [
             self.colorize("nm", self.ssid),
