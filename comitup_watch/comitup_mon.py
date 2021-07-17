@@ -343,15 +343,21 @@ class ComitupMon:
         print(table_text)
 
     async def run(self):
-        while True:
-            msg = await self.q.get()
 
-            if type(msg) == DeviceMonMsg:
-                self.proc_dev_msg(msg)
-            elif type(msg) == AvahiMessage:
-                self.proc_avahi_msg(msg)
-            elif type(msg) == PingMessage:
-                self.proc_ping_msg(msg)
+        print("\x1b[?25l")
 
-            if any([x.needs_update() for x in self.clist]):
-                self.print_list()
+        try:
+            while True:
+                msg = await self.q.get()
+
+                if type(msg) == DeviceMonMsg:
+                    self.proc_dev_msg(msg)
+                elif type(msg) == AvahiMessage:
+                    self.proc_avahi_msg(msg)
+                elif type(msg) == PingMessage:
+                    self.proc_ping_msg(msg)
+
+                if any([x.needs_update() for x in self.clist]):
+                    self.print_list()
+        finally:
+            print("\x1b[?25h")

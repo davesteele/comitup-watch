@@ -38,4 +38,5 @@ def main():
     try:
         loop.run_forever()
     except KeyboardInterrupt:
+        print("\x1b[?25h")
         print("\r  ")
