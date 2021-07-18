@@ -1,5 +1,15 @@
-comitup-watch (0.1-1) UNRELEASED; urgency=medium
+comitup-watch (0.2-1) comitup; urgency=medium
+
+  * Fix dbussy startup segfault.
+  * Use checkmarks and x's for ping status.
+  * Visual fixups.
+  * Improve IPv6 acquisition.
+
+
+ -- David Steele <steele@debian.org>  Sun, 18 Jul 2021 11:51:21 -0400
+
+comitup-watch (0.1-1) comitup; urgency=medium
 
   * Initial release.
 
- -- David Steele <steele@debian.org>  Wed, 07 Jul 2021 09:39:46 -0400
+ -- David Steele <steele@debian.org>  Wed, 07 Jul 2021 11:51:09 -0400
