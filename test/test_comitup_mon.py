@@ -14,7 +14,7 @@ from comitup_watch.devicemon import DeviceMonMsg, DeviceMonAction
 
 @pytest.fixture
 def chost():
-    return ComitupHost("foo", Mock())
+    return ComitupHost("foo", Mock, Mock())
 
 
 def test_comituphost_create(chost):
@@ -26,13 +26,14 @@ def test_comituphost_create(chost):
     assert not chost.has_data()
 
 def test_comituphost_compare(chost):
-    host2 = ComitupHost("bar", Mock())
+    host2 = ComitupHost("bar", Mock(), Mock())
 
     assert chost == chost
     assert chost > host2
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("test_rm", [True, False])
-def test_comituphost_avahi_msg(chost, test_rm):
+async def test_comituphost_avahi_msg(chost, test_rm):
     chost.add_avahi(AvahiMessage(AvahiAction.ADDED, "key", "host", "ipv4", "ipv6"))
 
     assert chost.has_data()
@@ -43,8 +44,9 @@ def test_comituphost_avahi_msg(chost, test_rm):
         assert not chost.has_data()
         assert chost.avahi_key is None
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("test_rm", [True, False])
-def test_comituphost_dev_msg(chost, test_rm):
+async def test_comituphost_dev_msg(chost, test_rm):
     assert chost.ssid is None
 
     chost.add_nm(DeviceMonMsg(DeviceMonAction.ADDED, "foo"))
@@ -64,11 +66,11 @@ def test_comituphost_dev_msg(chost, test_rm):
 
 @pytest.fixture
 def clist():
-    fxt = ComitupList(Mock())
+    fxt = ComitupList(Mock(), Mock())
 
     fxt.list = [
-        ComitupHost("bravo", Mock()),
-        ComitupHost("delta", Mock()),
+        ComitupHost("bravo", Mock(), Mock()),
+        ComitupHost("delta", Mock(), Mock()),
     ]
 
     return fxt
@@ -101,7 +103,7 @@ OrderCase = namedtuple("OrderCase", ["input", "output", "index"])
     ],
 )
 def test_comituplist_add_host(clist, case):
-    index = clist.add_host(ComitupHost(case.input, Mock()))
+    index = clist.add_host(ComitupHost(case.input, Mock(), Mock()))
 
     assert [x.host for x in clist.list] == case.output
 
@@ -109,7 +111,7 @@ def test_comituplist_add_host(clist, case):
 
 def test_comituplist_no_dups(clist):
     with pytest.raises(Exception):
-        clist.add_host(ComitupHost("bravo"))
+        clist.add_host(ComitupHost("bravo", Mock(), Mock()))
 
 
 @pytest.mark.parametrize(
@@ -159,8 +161,9 @@ def send_nm_msg(dev_mon, action, hostname) -> None:
     dev_mon.proc_dev_msg(msg)
 
 @pytest.fixture
-def com_mon(monkeypatch):
+async def com_mon(monkeypatch):
     monkeypatch.setattr("comitup_watch.comitup_mon.ComitupMon.print_list", Mock())
+    monkeypatch.setattr("comitup_watch.comitup_mon.ComitupHost.update", Mock())
 
     fxt = ComitupMon()
 
@@ -179,14 +182,16 @@ def test_in_table():
     assert in_table(testtable, "four")
     assert not in_table(testtable, "five")
 
-def test_comitupmon_fxt(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_fxt(com_mon):
     assert len(com_mon.clist) == 2
 
     assert host_exists(com_mon, "host1")
     assert host_exists(com_mon, "host2")
     assert not host_exists(com_mon, "host3")
 
-def test_comitupmon_add_twice(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_add_twice(com_mon):
     send_avahi_msg(com_mon, "ADDED", "host1")
     send_nm_msg(com_mon, "ADDED", "host2")
 
@@ -196,19 +201,22 @@ def test_comitupmon_add_twice(com_mon):
     assert host_exists(com_mon, "host2")
     assert not host_exists(com_mon, "host3")
 
-def test_comitupmon_del_avahi(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_del_avahi(com_mon):
     send_avahi_msg(com_mon, "REMOVED", "host1")
 
     assert not host_exists(com_mon, "host1")
     assert len(com_mon.clist) == 1
 
-def test_comitupmon_del_nm(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_del_nm(com_mon):
     send_nm_msg(com_mon, "REMOVED", "host2")
 
     assert not host_exists(com_mon, "host2")
     assert len(com_mon.clist) == 1
 
-def test_comitupmon_add_and_del(com_mon):
+@pytest.mark.asyncio
+async def test_comitupmon_add_and_del(com_mon):
     send_nm_msg(com_mon, "ADDED", "host1")
     assert host_exists(com_mon, "host1")
 

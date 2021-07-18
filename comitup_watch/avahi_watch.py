@@ -58,14 +58,14 @@ class MyListener:
         return None
 
     def get_ipv6(self, addrlist: List[str], si) -> Optional[str]:
-        for candidate in addrlist:
-            if re.search("^[0-9a-f:]+$", candidate):
-                return candidate
-
         if b"ip6addr" in si.properties:
             candidate = si.properties[b"ip6addr"].decode()
 
             if candidate:
+                return candidate
+
+        for candidate in addrlist:
+            if re.search("^[0-9a-f:]+$", candidate):
                 return candidate
 
         return None
@@ -73,7 +73,7 @@ class MyListener:
     def add_service(self, zeroconf, tipe, name):
         si = self.zc.get_service_info("_comitup._tcp.local.", name)
 
-        if si:
+        if si and b"hostname" in si.properties:
             msg = AvahiMessage(
                 AvahiAction.ADDED,
                 name,
