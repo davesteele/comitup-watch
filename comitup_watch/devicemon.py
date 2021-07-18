@@ -35,6 +35,9 @@ class DeviceMonitor(DBInt):
         super().__init__(bus)
 
     async def startup(self) -> None:
+
+        await asyncio.sleep(0.1)
+
         for devpath in await self.GetAllDevices():
             # print(devpath)
             await self.add_dev_path(devpath)
@@ -59,8 +62,6 @@ class DeviceMonitor(DBInt):
 
     async def add_dev_path(self, path):
 
-        # print("Added device path", path)
-
         if str(path) not in self.dev_paths:
             self.dev_paths |= set(str(path))
 
@@ -82,8 +83,6 @@ class DeviceMonitor(DBInt):
 
     @ravel.signal(name="DeviceAdded", in_signature="o")
     async def device_added_signal(self, path):
-        # print(path)
-
         # print("strpath", path)
         await self.add_dev_path(path)
 
