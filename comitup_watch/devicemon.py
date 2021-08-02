@@ -36,7 +36,7 @@ class DeviceMonitor(DBInt):
 
     async def startup(self) -> None:
 
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.5)
 
         for devpath in await self.GetAllDevices():
             # print(devpath)

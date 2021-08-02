@@ -7,14 +7,16 @@ from datetime import datetime, timedelta
 from functools import total_ordering, wraps
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import NamedTuple
+from typing import List, NamedTuple, Optional
 
 import tabulate
-from colorama import Back, Fore, Style
+# from colorama import Back, Fore, Style
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
 from .pingmon import PingMessage
+from .display import Display
+from .table import Cell, Table
 
 new_delta = timedelta(seconds=30)
 
@@ -98,6 +100,13 @@ class ComitupHost:
         self.q = event_q
 
         self.log = log
+
+        # for typing
+        self.domain: str
+        self.ipv4: str
+        self.ipv6: str
+        self.ping_status: Optional[bool]
+        self.ssid: str
 
     def update(self, kind):
         self.update_time[kind] = datetime.now()
@@ -192,8 +201,8 @@ class ComitupHost:
         if type(output) != str:
             output = ""
 
-        if self.is_new(kind):
-            output = Fore.GREEN + output + Style.RESET_ALL
+        # if self.is_new(kind):
+        #     output = Fore.GREEN + output + Style.RESET_ALL
 
         return output
 
@@ -211,6 +220,24 @@ class ComitupHost:
             self.colorize("ping", pstat),
         ]
 
+    def get_headers(self) -> List[str]:
+        return ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
+
+    def get_cell_row(self) -> List[Cell]:
+        pstat: str
+        if self.ping_status is None:
+            pstat = ""
+        else:
+            pstat = "  \u2714" if self.ping_status else "  \u274C"
+
+        return [
+            Cell(self.ssid, self.is_new("nm")),
+            Cell(self.domain, self.is_new("avahi")),
+            Cell(self.ipv4, self.is_new("avahi")),
+            Cell(self.ipv6, self.is_new("avahi")),
+            Cell(pstat, self.is_new("ping")),
+        ]
+
 
 class ComitupList:
     def __init__(self, event_q, log):
@@ -218,16 +245,16 @@ class ComitupList:
         self.log = log
         self.q = event_q
 
-    def __len__(self) -> None:
+    def __len__(self) -> int:
         return len(self.list)
 
-    def get_host_by_attr(self, attr: str, val: str) -> ComitupHost:
+    def get_host_by_attr(self, attr: str, val: str) -> Optional[ComitupHost]:
         try:
             return [x for x in self.list if getattr(x, attr) == val][0]
         except IndexError:
             return None
 
-    def get_host(self, hostname: str) -> ComitupHost:
+    def get_host(self, hostname: str) -> Optional[ComitupHost]:
         return self.get_host_by_attr("host", hostname)
 
     def add_host(self, host: ComitupHost) -> int:
@@ -323,27 +350,44 @@ class ComitupMon:
                 self.clist.rm_host(msg.name)
 
     def test_table(self):
-        table = [x.get_display_row() for x in self.clist]
+        # table = [x.get_display_row() for x in self.clist]
+
+        # return table
+
+        table = Table("SSID", "Domain Name", "IPv4", "IPv6", "Ping")
+
+        for host in self.clist:
+            table.add_row(*host.get_cell_row())
+
         return table
 
+
+
+
     def print_list(self):
-        os.system("clear")
+        # # os.system("clear")
 
-        header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
+        # header = ["SSID", "Domain Name", "IPv4", "IPv6", "Ping"]
 
-        tabulate.PRESERVE_WHITESPACE = True
-        table_text = tabulate.tabulate(self.test_table(), header)
-        width = max(len(x) for x in table_text.split("\n") if "--" in x)
+        # tabulate.PRESERVE_WHITESPACE = True
+        # table_text = tabulate.tabulate(self.test_table(), header)
+        # # width = max(len(x) for x in table_text.split("\n") if "--" in x)
 
-        print("-" * width)
-        print("COMITUP-WATCH".center(width))
-        print("-" * width)
+        # #print("-" * width)
+        # #print("COMITUP-WATCH".center(width))
+        # #print("-" * width)
 
-        print(table_text)
+        # #print(table_text)
+        # Display.instance.set_body(table_text.split("\n"))
+
+
+        table = self.test_table()
+        Display.instance.set_table(table)
+
 
     async def run(self):
 
-        print("\x1b[?25l")
+        #print("\x1b[?25l")
 
         try:
             while True:
@@ -359,4 +403,5 @@ class ComitupMon:
                 if any([x.needs_update() for x in self.clist]):
                     self.print_list()
         finally:
-            print("\x1b[?25h")
+            #print("\x1b[?25h")
+            pass

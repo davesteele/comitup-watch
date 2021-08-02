@@ -5,10 +5,11 @@
 
 
 import asyncio
+from curses import wrapper
 
 import ravel
 
-from . import avahi_watch, comitup_mon, devicemon, pingmon
+from . import avahi_watch, comitup_mon, devicemon, pingmon, display
 
 
 async def main_async(bus):
@@ -28,15 +29,20 @@ async def main_async(bus):
     await comitupmon.run()
 
 
-def main():
+def wmain(stdscr):
     loop = asyncio.get_event_loop()
 
     bus = ravel.system_bus()
     bus.attach_asyncio(loop)
 
+    loop.create_task(display.display_main(stdscr))
     loop.create_task(main_async(bus))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         print("\x1b[?25h")
         print("\r  ")
+
+def main():
+    wrapper(wmain)
+    

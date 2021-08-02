@@ -2,11 +2,12 @@ import asyncio
 import sys
 from abc import ABC, abstractmethod
 from curses import (KEY_RESIZE, doupdate, newpad,
-                    newwin, start_color, wrapper, ERR)
+                    newwin, start_color, wrapper, ERR, curs_set, A_REVERSE)
 from curses.ascii import ESC
 from curses.panel import new_panel, update_panels
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
+
 
 import _curses
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from curses.panel import _Curses_Panel
 
 
-def mynewwin(*args):
+def mynewwin(*args) -> "_curses._CursesWindow":
     win = newwin(*args)
 
     win.nodelay(True)
@@ -63,6 +64,8 @@ class MessageContext(Context):
     def __init__(self, display, message):
         super().__init__(display)
 
+        self.messagewin: Optional[_curses._CursesWindow]
+        self.messagepan: Optional[_Curses_Panel]
         self.message(message)
 
     def _process_char(self, char: int) -> None:
@@ -75,7 +78,7 @@ class MessageContext(Context):
         dialog_width = 30
         rows, cols = self.display.stdscr.getmaxyx()
 
-        self.messagewin: Optional[_curses._CursesWindow] = mynewwin(
+        self.messagewin = mynewwin(
             5,
             dialog_width,
             int((rows - 5) / 2),
@@ -87,7 +90,7 @@ class MessageContext(Context):
         padding = int((dialog_width - len(message.name)) / 2)
         self.messagewin.addstr(2, padding, message.name)
 
-        self.messagepan: Optional[_Curses_Panel] = new_panel(self.messagewin)
+        self.messagepan = new_panel(self.messagewin)
         self.messagepan.top()
 
         update_panels()
@@ -101,21 +104,22 @@ class MessageContext(Context):
 
 
 class Display:
-    def __init__(self, stdscr):
+    instance: Optional["Display"] = None
+
+    def __init__(self, stdscr: "_curses._CursesWindow"):
         self.stdscr = stdscr
-        self.pad = newpad(150, 150)
-        self.pad.move(3, 0)
 
-        self.headerwin = None
-        self.headerpan = None
-        self.footerwin = None
-        self.footerpan = None
-        self.bodywin = None
-        self.bodypan = None
+        self.headerwin: Optional[_curses._CursesWindow] = None
+        self.headerpan: Optional[_Curses_Panel] = None
+        self.footerwin: Optional[_curses._CursesWindow] = None
+        self.footerpan: Optional[_Curses_Panel] = None
+        self.bodywin: Optional[_curses._CursesWindow]  = None
+        self.bodypan: Optional[_Curses_Panel] = None
 
-        self.body = [""]
+        self.body: List[str] = [""]
+        self.table = None
 
-        self.contexts = [MainContext(self)]
+        self.contexts: List[Context] = [MainContext(self)]
 
     def _make_footer(self, rows: int, cols: int) -> None:
 
@@ -153,7 +157,8 @@ class Display:
         self.bodywin = mynewwin(rows - 3 - 3, cols, 3, 0)
         self.bodywin.erase()
 
-        self.set_body()
+        # self.set_body()
+        self.set_table()
 
         self.bodypan = new_panel(self.bodywin)
         self.bodypan.top()
@@ -170,23 +175,53 @@ class Display:
         self.stdscr.refresh()
         doupdate()
 
-    def set_body(self, body: List[str] = None) -> None:
-        if body:
-            self.body = body
+#     def set_body(self, body: List[str] = None) -> None:
+#         if body:
+#             self.body = body
+# 
+#         if not self.bodywin:
+#             raise Exception("No bodywin")
+# 
+#         self.bodywin.clear()
+#         rows, cols = self.bodywin.getmaxyx()
+# 
+#         trunc = self.body[:rows]
+#         trunc = [x[: cols - 1] for x in trunc]
+# 
+#         max_row = max([len(x) for x in trunc])
+# 
+#         blank_rows = 0
+#         blank_cols = int((cols - max_row) / 2)
+# 
+#         for row, text in enumerate(trunc, max(0, blank_rows)):
+#             self.bodywin.addstr(row, blank_cols, text)
+# 
+#         update_panels()
+#         doupdate()
+
+    def set_table(self, table = None) -> None:
+        if table:
+            self.table = table
+
+        if self.table is None:
+            return
+
+        if not self.bodywin:
+            raise Exception("No bodywin")
+
+        rows, cols = self.stdscr.getmaxyx()
 
         self.bodywin.clear()
-        rows, cols = self.bodywin.getmaxyx()
-
-        trunc = self.body[:rows]
-        trunc = [x[: cols - 1] for x in trunc]
-
-        max_row = max([len(x) for x in trunc])
-
-        blank_rows = int((rows - len(trunc)) / 2)
-        blank_cols = int((cols - max_row) / 2)
-
-        for row, text in enumerate(trunc, max(0, blank_rows)):
-            self.bodywin.addstr(row, blank_cols, text)
+        x_offset = max(0, int((cols - self.table.width())/2))
+        # x_offset = 0
+        for cell in self.table:
+            try:
+                if cell.new:
+                    self.bodywin.addstr(cell.y, x_offset + cell.x, cell.text, A_REVERSE)
+                else:
+                    self.bodywin.addstr(cell.y, x_offset + cell.x, cell.text)
+            except Exception:
+                pass
 
         update_panels()
         doupdate()
@@ -201,16 +236,6 @@ class Display:
         self.contexts.pop()
 
 
-count = 0
-async def update(display):
-    global count 
-
-    await asyncio.sleep(1)
-
-    display.set_body(["foo" + str(count)])
-    count += 1
-
-
 async def get_key(stdscr):
     while True:
         char = stdscr.getch()
@@ -220,38 +245,31 @@ async def get_key(stdscr):
             await asyncio.sleep(0.1)
 
 
-async def amain(stdscr):
+
+async def display_main(stdscr):
+    curs_set(0)
     start_color()
     stdscr.clear()
+    stdscr.nodelay(True)
 
     display = Display(stdscr)
+    Display.instance = display
     display.make_display()
 
-    text = []
-    for i in range(0, 9):
-        v = i - 10
-        text.append("10 divided by {} is {}".format(v, 10 / v))
+    # text = []
+    # for i in range(0, 9):
+    #     v = i - 10
+    #     text.append("10 divided by {} is {}".format(v, 10 / v))
 
-    display.set_body(text)
-
-    update_panels()
-    doupdate()
-    stdscr.refresh()
-
-    loop = asyncio.get_running_loop()
-
-    loop.create_task(update(display))
-    await update(display)
-    await update(display)
+    # display.set_body(text)
 
     while True:
-        # char = await loop.run_in_executor(None, stdscr.getch)
-        char = await get_key(stdscr)
-        display.handle_char(char)
+        display.handle_char(await get_key(stdscr))
+
 
 
 def main(stdscr):
-    asyncio.run(amain(stdscr))
+    asyncio.run(display_main(stdscr))
 
 if __name__ == "__main__":
     wrapper(main)

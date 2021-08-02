@@ -4,8 +4,10 @@
 # License-Filename: LICENSE
 
 
+from typing import Any, Dict
+
 class DBInt:
-    _cache = {}
+    _cache: Dict[str, Any] = {}
     bus = None
 
     def __init__(self, bus):
