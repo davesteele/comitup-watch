@@ -201,10 +201,14 @@ class Display:
         self.contexts.pop()
 
 
+count = 0
 async def update(display):
+    global count 
+
     await asyncio.sleep(1)
 
-    display.set_body(["foo"])
+    display.set_body(["foo" + str(count)])
+    count += 1
 
 
 async def get_key(stdscr):
@@ -234,10 +238,12 @@ async def amain(stdscr):
     doupdate()
     stdscr.refresh()
 
-    # asyncio.create_task(update(display))
+    loop = asyncio.get_running_loop()
+
+    loop.create_task(update(display))
+    await update(display)
     await update(display)
 
-    loop = asyncio.get_running_loop()
     while True:
         # char = await loop.run_in_executor(None, stdscr.getch)
         char = await get_key(stdscr)
