@@ -10,12 +10,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 import tabulate
-from colorama import Fore, Back, Style
+from colorama import Back, Fore, Style
 
 from .avahi_watch import AvahiMessage
 from .devicemon import DeviceMonMsg
 from .pingmon import PingMessage
-
 
 new_delta = timedelta(seconds=30)
 

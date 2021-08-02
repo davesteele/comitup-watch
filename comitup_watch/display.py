@@ -1,6 +1,8 @@
+import asyncio
 import sys
 from abc import ABC, abstractmethod
-from curses import KEY_RESIZE, doupdate, newpad, newwin, start_color, wrapper
+from curses import (KEY_RESIZE, doupdate, newpad,
+                    newwin, start_color, wrapper, ERR)
 from curses.ascii import ESC
 from curses.panel import new_panel, update_panels
 from enum import Enum
@@ -10,6 +12,15 @@ import _curses
 
 if TYPE_CHECKING:
     from curses.panel import _Curses_Panel
+
+
+def mynewwin(*args):
+    win = newwin(*args)
+
+    win.nodelay(True)
+    win.erase()
+
+    return win
 
 
 class Message(Enum):
@@ -64,7 +75,7 @@ class MessageContext(Context):
         dialog_width = 30
         rows, cols = self.display.stdscr.getmaxyx()
 
-        self.messagewin: Optional[_curses._CursesWindow] = newwin(
+        self.messagewin: Optional[_curses._CursesWindow] = mynewwin(
             5,
             dialog_width,
             int((rows - 5) / 2),
@@ -106,9 +117,9 @@ class Display:
 
         self.contexts = [MainContext(self)]
 
-    def make_footer(self, rows: int, cols: int) -> None:
+    def _make_footer(self, rows: int, cols: int) -> None:
 
-        self.footerwin = newwin(3, cols, rows - 3, 0)
+        self.footerwin = mynewwin(3, cols, rows - 3, 0)
         self.footerwin.erase()
 
         self.footerwin.addstr(0, 0, "-" * (cols - 1))
@@ -122,9 +133,9 @@ class Display:
         self.footerpan = new_panel(self.footerwin)
         self.footerpan.top()
 
-    def make_header(self, rows: int, cols: int) -> None:
+    def _make_header(self, rows: int, cols: int) -> None:
 
-        self.headerwin = newwin(3, cols, 0, 0)
+        self.headerwin = mynewwin(3, cols, 0, 0)
         self.headerwin.erase()
 
         self.headerwin.addstr(0, 0, "-" * (cols - 1))
@@ -138,8 +149,8 @@ class Display:
         self.headerpan = new_panel(self.headerwin)
         self.headerpan.top()
 
-    def make_body(self, rows: int, cols: int) -> None:
-        self.bodywin = newwin(rows - 3 - 3, cols, 3, 0)
+    def _make_body(self, rows: int, cols: int) -> None:
+        self.bodywin = mynewwin(rows - 3 - 3, cols, 3, 0)
         self.bodywin.erase()
 
         self.set_body()
@@ -151,9 +162,9 @@ class Display:
         maxy, maxx = self.stdscr.getmaxyx()
         self.stdscr.clear()
 
-        self.make_body(maxy, maxx)
-        self.make_header(maxy, maxx)
-        self.make_footer(maxy, maxx)
+        self._make_body(maxy, maxx)
+        self._make_header(maxy, maxx)
+        self._make_footer(maxy, maxx)
 
         update_panels()
         self.stdscr.refresh()
@@ -180,8 +191,6 @@ class Display:
         update_panels()
         doupdate()
 
-    #     def strlen(self, text: str) -> int:
-
     def handle_char(self, char: int) -> None:
         self.contexts[-1].handle_char(char)
 
@@ -192,14 +201,27 @@ class Display:
         self.contexts.pop()
 
 
-def cmain(stdscr):
+async def update(display):
+    await asyncio.sleep(1)
+
+    display.set_body(["foo"])
+
+
+async def get_key(stdscr):
+    while True:
+        char = stdscr.getch()
+        if char != ERR:
+            return char
+        else:
+            await asyncio.sleep(0.1)
+
+
+async def amain(stdscr):
     start_color()
     stdscr.clear()
 
     display = Display(stdscr)
     display.make_display()
-
-    # display.set_body(["foo"])
 
     text = []
     for i in range(0, 9):
@@ -207,16 +229,23 @@ def cmain(stdscr):
         text.append("10 divided by {} is {}".format(v, 10 / v))
 
     display.set_body(text)
-    # display.message(Message.NOT_IMPLEMENTED)
 
     update_panels()
     doupdate()
     stdscr.refresh()
 
+    # asyncio.create_task(update(display))
+    await update(display)
+
+    loop = asyncio.get_running_loop()
     while True:
-        char = stdscr.getch()
+        # char = await loop.run_in_executor(None, stdscr.getch)
+        char = await get_key(stdscr)
         display.handle_char(char)
 
 
+def main(stdscr):
+    asyncio.run(amain(stdscr))
+
 if __name__ == "__main__":
-    wrapper(cmain)
+    wrapper(main)
