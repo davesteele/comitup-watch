@@ -56,7 +56,7 @@ series of columns:
 
     SSID information is collected from **NetworkManager**.
 
-    The accuracy of thie column is improved if there is an unconnected WiFi
+    The accuracy of this column is improved if there is an unconnected WiFi
     interface available.
 
   * __Domain Name__
